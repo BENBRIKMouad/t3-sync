@@ -3,6 +3,7 @@ param (
     [switch]$Force,
     [switch]$NoPush,
     [switch]$NoPrompt,
+    [switch]$CheckBitwarden,
     [string]$CustomMessage
 )
 
@@ -24,9 +25,11 @@ try {
     Write-Warning "git pull encountered a notice or error. Check git status."
 }
 
-# Step 2: Environment Diff & Secret Scan
+# Step 2: Environment Diff & Secret Check
 Write-Host "`n[Step 2/4] Running Environment Diff and Secret Check..." -ForegroundColor Cyan
-& "$PSScriptRoot\diff-env.ps1" -CheckBitwarden
+$diffParams = @{}
+if ($CheckBitwarden) { $diffParams["CheckBitwarden"] = $true }
+& "$PSScriptRoot\diff-env.ps1" @diffParams
 
 # Step 3: Check whether to proceed with Backup
 if (-not $Force -and -not $NoPrompt) {

@@ -171,26 +171,37 @@ if ($missedSecrets.Count -gt 0) {
 
 if ($CheckBitwarden) {
     Write-Host "`n--- 4. Verifying Bitwarden Vault Secrets ---" -ForegroundColor Cyan
-    $sessionKey = Ensure-BitwardenSession
-    if ($sessionKey) {
-        try {
-            $bwItem = bw get item $SecretItemName --session $sessionKey 2>$null | ConvertFrom-Json
-            Write-Host "    [OK] Found Bitwarden item '$SecretItemName'." -ForegroundColor Green
-            $keysInBw = @()
-            if ($bwItem.fields) {
-                foreach ($f in $bwItem.fields) { if ($f.name) { $keysInBw += $f.name } }
-            }
-            if ($bwItem.notes) {
-                $trimmed = $bwItem.notes.Trim()
-                if ($trimmed.StartsWith("{") -and $trimmed.EndsWith("}")) {
-                    $jsonNotes = $trimmed | ConvertFrom-Json
-                    foreach ($prop in $jsonNotes.PSObject.Properties) { $keysInBw += $prop.Name }
+    $bwCmd = Get-Command bw -ErrorAction SilentlyContinue
+    if ($bwCmd) {
+        $bwStatusRaw = (bw status 2>$null)
+        $bwStatus = if ($bwStatusRaw) { $bwStatusRaw | ConvertFrom-Json } else { $null }
+        if ($bwStatus -and $bwStatus.status -eq "locked" -and -not $env:BW_SESSION) {
+            Write-Host "    [-] Bitwarden vault is locked. Run 'bw unlock' to verify vault items." -ForegroundColor Yellow
+        } else {
+            $sessionKey = Ensure-BitwardenSession
+            if ($sessionKey) {
+                try {
+                    $bwItem = bw get item $SecretItemName --session $sessionKey 2>$null | ConvertFrom-Json
+                    Write-Host "    [OK] Found Bitwarden item '$SecretItemName'." -ForegroundColor Green
+                    $keysInBw = @()
+                    if ($bwItem.fields) {
+                        foreach ($f in $bwItem.fields) { if ($f.name) { $keysInBw += $f.name } }
+                    }
+                    if ($bwItem.notes) {
+                        $trimmed = $bwItem.notes.Trim()
+                        if ($trimmed.StartsWith("{") -and $trimmed.EndsWith("}")) {
+                            $jsonNotes = $trimmed | ConvertFrom-Json
+                            foreach ($prop in $jsonNotes.PSObject.Properties) { $keysInBw += $prop.Name }
+                        }
+                    }
+                    Write-Host "    Vault contains $($keysInBw.Count) secret key(s): $($keysInBw -join ', ')" -ForegroundColor Gray
+                } catch {
+                    Write-Host "    [-] Bitwarden item '$SecretItemName' not found or could not be read." -ForegroundColor Yellow
                 }
             }
-            Write-Host "    Vault contains $($keysInBw.Count) secret key(s): $($keysInBw -join ', ')" -ForegroundColor Gray
-        } catch {
-            Write-Host "    [-] Bitwarden item '$SecretItemName' not found or could not be read." -ForegroundColor Yellow
         }
+    } else {
+        Write-Host "    [-] Bitwarden CLI ('bw') not available." -ForegroundColor Yellow
     }
 }
 
