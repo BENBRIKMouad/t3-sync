@@ -1,11 +1,13 @@
-# apply.ps1: Applies repository configs to local T3 userdata directory
+# apply.ps1: Applies repository configs to local T3 userdata directory and MCP configurations
 param (
-    [switch]$Symlink
+    [switch]$Symlink,
+    [switch]$SyncSecrets
 )
 
 $ErrorActionPreference = "Stop"
 $root = (Split-Path -Parent $PSScriptRoot)
 $userDir = "$env:USERPROFILE\.t3\userdata"
+$cursorDir = "$env:USERPROFILE\.cursor"
 
 if (!(Test-Path $userDir)) {
     New-Item -ItemType Directory -Path $userDir -Force | Out-Null
@@ -26,6 +28,13 @@ if ($Symlink) {
     if (Test-Path "$userDir\desktop-settings.json") { Remove-Item "$userDir\desktop-settings.json" -Force }
     New-Item -ItemType SymbolicLink -Path "$userDir\desktop-settings.json" -Target "$root\config\desktop-settings.json" -Force | Out-Null
     Write-Host "  [Linked] desktop-settings.json"
+
+    if (Test-Path "$root\config\mcp.json") {
+        if (!(Test-Path $cursorDir)) { New-Item -ItemType Directory -Path $cursorDir -Force | Out-Null }
+        if (Test-Path "$cursorDir\mcp.json") { Remove-Item "$cursorDir\mcp.json" -Force }
+        New-Item -ItemType SymbolicLink -Path "$cursorDir\mcp.json" -Target "$root\config\mcp.json" -Force | Out-Null
+        Write-Host "  [Linked] mcp.json -> ~/.cursor/mcp.json"
+    }
 } else {
     Write-Host "Copying configuration files..."
     Copy-Item "$root\config\client-settings.json" "$userDir\client-settings.json" -Force
@@ -36,6 +45,12 @@ if ($Symlink) {
 
     Copy-Item "$root\config\desktop-settings.json" "$userDir\desktop-settings.json" -Force
     Write-Host "  [Copied] desktop-settings.json"
+
+    if (Test-Path "$root\config\mcp.json") {
+        if (!(Test-Path $cursorDir)) { New-Item -ItemType Directory -Path $cursorDir -Force | Out-Null }
+        Copy-Item "$root\config\mcp.json" "$cursorDir\mcp.json" -Force
+        Write-Host "  [Copied] mcp.json -> ~/.cursor/mcp.json"
+    }
 }
 
 if (Test-Path "$root\config\settings.template.json") {
@@ -53,4 +68,9 @@ if (Test-Path "$root\config\settings.template.json") {
     }
 }
 
-Write-Host "Apply completed successfully! Restart T3 Code to ensure all settings take effect." -ForegroundColor Green
+if ($SyncSecrets) {
+    Write-Host "`nSyncing secrets from Bitwarden..." -ForegroundColor Cyan
+    & "$PSScriptRoot\sync-secrets.ps1"
+}
+
+Write-Host "`nApply completed successfully! Restart T3 Code to ensure all settings take effect." -ForegroundColor Green
