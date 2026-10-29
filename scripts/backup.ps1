@@ -1,4 +1,4 @@
-# backup.ps1: Exports local T3, provider configs, and MCP configs to the repository
+# backup.ps1: Exports local T3, provider configs, skills, plugins, and MCP configs to the repository
 param (
     [switch]$Commit,
     [string]$Message,
@@ -16,6 +16,17 @@ $promptToStore = -not $NoSecretPrompt
 
 # Load secret scanning and Bitwarden helpers
 . "$PSScriptRoot\secret-utils.ps1"
+
+function Copy-DirectorySafely {
+    param (
+        [string]$SourceDir,
+        [string]$TargetDir
+    )
+    if (!(Test-Path $TargetDir)) {
+        New-Item -ItemType Directory -Path $TargetDir -Force | Out-Null
+    }
+    Copy-Item -Path "$SourceDir\*" -Destination $TargetDir -Recurse -Force
+}
 
 Write-Host "Backing up T3 configs from $userDir to $root\config (Host: $hostName)..." -ForegroundColor Cyan
 
@@ -50,40 +61,153 @@ if (Test-Path "$cursorDir\mcp.json") {
     Write-Host "  [+] mcp.json (from ~/.cursor/mcp.json)"
 }
 
-# --- Provider Configs Backup (e.g. Gemini / Antigravity) ---
-Write-Host "`nBacking up Provider configs (Gemini / Antigravity)..." -ForegroundColor Cyan
+# --- Provider Configs Backup (Gemini / Antigravity) ---
+Write-Host "`nBacking up Provider configs (Gemini / Antigravity: configs, skills, plugins, MCPs)..." -ForegroundColor Cyan
 if (Test-Path $geminiDir) {
     $geminiTarget = "$providersRoot\gemini"
     if (!(Test-Path $geminiTarget)) {
         New-Item -ItemType Directory -Path $geminiTarget -Force | Out-Null
     }
 
-    # Backup config.json (scan and sanitize secrets)
-    if (Test-Path "$geminiDir\config.json") {
-        $gConfig = Get-Content "$geminiDir\config.json" -Raw | ConvertFrom-Json
-        Sanitize-ObjectSecrets -Obj $gConfig -ContextName "gemini/config.json" -InteractivePrompt:$promptToStore | Out-Null
-        $gConfig | ConvertTo-Json -Depth 10 | Set-Content "$geminiTarget\config.json" -Encoding UTF8
-        Write-Host "  [+] gemini/config.json"
-    }
-
-    # Backup mcp_config.json if present
-    if (Test-Path "$geminiDir\mcp_config.json") {
-        $mcpG = Get-Content "$geminiDir\mcp_config.json" -Raw
-        if ($mcpG -and $mcpG.Trim()) {
+    # 1. Backup & Smart Merge config.json (including plugins & permissions)
+    $repoConfigPath = "$geminiTarget\config.json"
+    $localConfigPath = "$geminiDir\config.json"
+    if (Test-Path $localConfigPath) {
+        $gConfig = Get-Content $localConfigPath -Raw | ConvertFrom-Json
+        
+        # Merge with existing repo config to prevent losing plugins or permissions from other machines
+        if (Test-Path $repoConfigPath) {
             try {
-                $mcpObj = $mcpG | ConvertFrom-Json
-                Sanitize-ObjectSecrets -Obj $mcpObj -ContextName "gemini/mcp_config.json" -InteractivePrompt:$promptToStore | Out-Null
-                $mcpObj | ConvertTo-Json -Depth 10 | Set-Content "$geminiTarget\mcp_config.json" -Encoding UTF8
+                $repoConfig = Get-Content $repoConfigPath -Raw | ConvertFrom-Json
+                
+                # Merge plugins: preserve plugins from repo if missing locally
+                if ($repoConfig.plugins) {
+                    if (-not $gConfig.plugins) {
+                        $gConfig | Add-Member -NotePropertyName "plugins" -NotePropertyValue ([PSCustomObject]@{})
+                    }
+                    foreach ($p in $repoConfig.plugins.PSObject.Properties) {
+                        if (-not $gConfig.plugins.PSObject.Properties[$p.Name]) {
+                            $gConfig.plugins | Add-Member -NotePropertyName $p.Name -NotePropertyValue $p.Value
+                        }
+                    }
+                }
+                
+                # Merge globalPermissionGrants: union allow list
+                if ($repoConfig.userSettings.globalPermissionGrants.allow) {
+                    if (-not $gConfig.userSettings) {
+                        $gConfig | Add-Member -NotePropertyName "userSettings" -NotePropertyValue ([PSCustomObject]@{})
+                    }
+                    if (-not $gConfig.userSettings.globalPermissionGrants) {
+                        $gConfig.userSettings | Add-Member -NotePropertyName "globalPermissionGrants" -NotePropertyValue ([PSCustomObject]@{})
+                    }
+                    $existingAllow = @($gConfig.userSettings.globalPermissionGrants.allow)
+                    foreach ($grant in $repoConfig.userSettings.globalPermissionGrants.allow) {
+                        if ($existingAllow -notcontains $grant) {
+                            $existingAllow += $grant
+                        }
+                    }
+                    $gConfig.userSettings.globalPermissionGrants.allow = $existingAllow
+                }
             } catch {
-                Copy-Item "$geminiDir\mcp_config.json" "$geminiTarget\mcp_config.json" -Force
+                Write-Warning "Could not parse existing repo config.json during merge: $_"
             }
-        } else {
-            Set-Content "$geminiTarget\mcp_config.json" "" -Encoding UTF8
         }
-        Write-Host "  [+] gemini/mcp_config.json"
+
+        Sanitize-ObjectSecrets -Obj $gConfig -ContextName "gemini/config.json" -InteractivePrompt:$promptToStore | Out-Null
+        $gConfig | ConvertTo-Json -Depth 10 | Set-Content $repoConfigPath -Encoding UTF8
+        Write-Host "  [+] gemini/config.json (merged plugins & settings)"
     }
 
-    # Backup project definitions (projects/*.json)
+    # 2. Backup & Smart Merge mcp_config.json
+    $repoMcpPath = "$geminiTarget\mcp_config.json"
+    $localMcpPath = "$geminiDir\mcp_config.json"
+    $mergedMcpServers = [ordered]@{}
+
+    if (Test-Path $repoMcpPath) {
+        $repoRaw = Get-Content $repoMcpPath -Raw
+        if ($repoRaw -and $repoRaw.Trim()) {
+            try {
+                $repoMcp = $repoRaw | ConvertFrom-Json
+                if ($repoMcp.mcpServers) {
+                    foreach ($s in $repoMcp.mcpServers.PSObject.Properties) {
+                        $mergedMcpServers[$s.Name] = $s.Value
+                    }
+                }
+            } catch {}
+        }
+    }
+
+    if (Test-Path $localMcpPath) {
+        $localRaw = Get-Content $localMcpPath -Raw
+        if ($localRaw -and $localRaw.Trim()) {
+            try {
+                $localMcp = $localRaw | ConvertFrom-Json
+                if ($localMcp.mcpServers) {
+                    foreach ($s in $localMcp.mcpServers.PSObject.Properties) {
+                        $mergedMcpServers[$s.Name] = $s.Value
+                    }
+                }
+            } catch {}
+        }
+    }
+
+    if ($mergedMcpServers.Keys.Count -gt 0) {
+        $mcpObj = [PSCustomObject]@{ mcpServers = [PSCustomObject]$mergedMcpServers }
+        Sanitize-ObjectSecrets -Obj $mcpObj -ContextName "gemini/mcp_config.json" -InteractivePrompt:$promptToStore | Out-Null
+        $mcpObj | ConvertTo-Json -Depth 10 | Set-Content $repoMcpPath -Encoding UTF8
+        Write-Host "  [+] gemini/mcp_config.json (merged $($mergedMcpServers.Keys.Count) servers: $($mergedMcpServers.Keys -join ', '))"
+    }
+
+    # 3. Backup Skills (~/.gemini/config/skills -> config/providers/gemini/skills)
+    $geminiSkillsDir = "$geminiDir\skills"
+    $skillsTarget = "$geminiTarget\skills"
+    if (!(Test-Path $skillsTarget)) {
+        New-Item -ItemType Directory -Path $skillsTarget -Force | Out-Null
+    }
+    $repoRootSkills = "$root\skills"
+    if (Test-Path $repoRootSkills) {
+        Get-ChildItem -Path $repoRootSkills -Directory | ForEach-Object {
+            $dest = "$skillsTarget\$($_.Name)"
+            if (!(Test-Path $dest)) {
+                Copy-DirectorySafely -SourceDir $_.FullName -TargetDir $dest
+            }
+        }
+    }
+    if (Test-Path $geminiSkillsDir) {
+        Get-ChildItem -Path $geminiSkillsDir -Directory | ForEach-Object {
+            $dest = "$skillsTarget\$($_.Name)"
+            Copy-DirectorySafely -SourceDir $_.FullName -TargetDir $dest
+            Write-Host "  [+] gemini/skills/$($_.Name)"
+            # Mirror to repo root skills as well
+            if (Test-Path $repoRootSkills) {
+                Copy-DirectorySafely -SourceDir $_.FullName -TargetDir "$repoRootSkills\$($_.Name)"
+            }
+        }
+    }
+
+    # 4. Backup Plugins (~/.gemini/config/plugins -> config/providers/gemini/plugins)
+    $geminiPluginsDir = "$geminiDir\plugins"
+    $pluginsTarget = "$geminiTarget\plugins"
+    if (!(Test-Path $pluginsTarget)) {
+        New-Item -ItemType Directory -Path $pluginsTarget -Force | Out-Null
+    }
+    if (Test-Path $geminiPluginsDir) {
+        Get-ChildItem -Path $geminiPluginsDir -Directory | ForEach-Object {
+            $dest = "$pluginsTarget\$($_.Name)"
+            Copy-DirectorySafely -SourceDir $_.FullName -TargetDir $dest
+            Write-Host "  [+] gemini/plugins/$($_.Name)"
+        }
+    }
+
+    # 5. Backup Explicit Customization Manifests (skills.json / plugins.json)
+    foreach ($mFile in @("skills.json", "plugins.json")) {
+        if (Test-Path "$geminiDir\$mFile") {
+            Copy-Item "$geminiDir\$mFile" "$geminiTarget\$mFile" -Force
+            Write-Host "  [+] gemini/$mFile"
+        }
+    }
+
+    # 6. Backup project definitions (projects/*.json)
     if (Test-Path "$geminiDir\projects") {
         $projTarget = "$geminiTarget\projects"
         if (!(Test-Path $projTarget)) {

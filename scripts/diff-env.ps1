@@ -10,6 +10,7 @@ $userDir = "$env:USERPROFILE\.t3\userdata"
 $cursorDir = "$env:USERPROFILE\.cursor"
 $geminiDir = "$env:USERPROFILE\.gemini\config"
 $providersRoot = "$root\config\providers"
+$geminiTarget = "$providersRoot\gemini"
 
 . "$PSScriptRoot\secret-utils.ps1"
 
@@ -69,6 +70,34 @@ function Compare-ConfigJson {
     }
 }
 
+function Compare-DirectoryNames {
+    param (
+        [string]$LocalDir,
+        [string]$RepoDir,
+        [string]$CategoryName
+    )
+    $localItems = if (Test-Path $LocalDir) { @(Get-ChildItem -Path $LocalDir -Directory | Select-Object -ExpandProperty Name) } else { @() }
+    $repoItems = if (Test-Path $RepoDir) { @(Get-ChildItem -Path $RepoDir -Directory | Select-Object -ExpandProperty Name) } else { @() }
+
+    $missingLocally = @($repoItems | Where-Object { $localItems -notcontains $_ })
+    $newLocally = @($localItems | Where-Object { $repoItems -notcontains $_ })
+
+    if ($missingLocally.Count -gt 0) {
+        Write-Host "[-] $CategoryName missing locally: $($missingLocally -join ', ')" -ForegroundColor Yellow
+        $script:hasDiffs = $true
+        $script:diffSummary += "Missing local $($CategoryName): $($missingLocally -join ', ')"
+    }
+    if ($newLocally.Count -gt 0) {
+        Write-Host "[+] $CategoryName new locally: $($newLocally -join ', ')" -ForegroundColor Yellow
+        $script:hasDiffs = $true
+        $script:diffSummary += "New local $($CategoryName): $($newLocally -join ', ')"
+    }
+    if ($missingLocally.Count -eq 0 -and $newLocally.Count -eq 0) {
+        $commonCount = $localItems.Count
+        Write-Host "    [OK] $CategoryName ($commonCount items) match repo" -ForegroundColor DarkGray
+    }
+}
+
 function Scan-FileForSecrets {
     param (
         [string]$FilePath,
@@ -118,10 +147,14 @@ Compare-ConfigJson -LocalPath "$userDir\client-settings.json" -RepoPath "$root\c
 Compare-ConfigJson -LocalPath "$userDir\keybindings.json" -RepoPath "$root\config\keybindings.json" -DisplayName "keybindings.json"
 Compare-ConfigJson -LocalPath "$userDir\desktop-settings.json" -RepoPath "$root\config\desktop-settings.json" -DisplayName "desktop-settings.json"
 Compare-ConfigJson -LocalPath "$cursorDir\mcp.json" -RepoPath "$root\config\mcp.json" -DisplayName "mcp.json (~/.cursor)"
-Compare-ConfigJson -LocalPath "$geminiDir\config.json" -RepoPath "$providersRoot\gemini\config.json" -DisplayName "gemini/config.json"
-Compare-ConfigJson -LocalPath "$geminiDir\mcp_config.json" -RepoPath "$providersRoot\gemini\mcp_config.json" -DisplayName "gemini/mcp_config.json"
+Compare-ConfigJson -LocalPath "$geminiDir\config.json" -RepoPath "$geminiTarget\config.json" -DisplayName "gemini/config.json"
+Compare-ConfigJson -LocalPath "$geminiDir\mcp_config.json" -RepoPath "$geminiTarget\mcp_config.json" -DisplayName "gemini/mcp_config.json"
 
-Write-Host "`n--- 2. Scanning Local Environment for Missed / Hardcoded Secrets ---" -ForegroundColor Cyan
+Write-Host "`n--- 2. Comparing Gemini Skills & Plugins ---" -ForegroundColor Cyan
+Compare-DirectoryNames -LocalDir "$geminiDir\skills" -RepoDir "$geminiTarget\skills" -CategoryName "gemini/skills"
+Compare-DirectoryNames -LocalDir "$geminiDir\plugins" -RepoDir "$geminiTarget\plugins" -CategoryName "gemini/plugins"
+
+Write-Host "`n--- 3. Scanning Local Environment for Missed / Hardcoded Secrets ---" -ForegroundColor Cyan
 Scan-FileForSecrets -FilePath "$userDir\settings.json" -DisplayName "settings.json"
 Scan-FileForSecrets -FilePath "$cursorDir\mcp.json" -DisplayName "mcp.json"
 Scan-FileForSecrets -FilePath "$geminiDir\config.json" -DisplayName "gemini/config.json"
@@ -137,27 +170,38 @@ if ($missedSecrets.Count -gt 0) {
 }
 
 if ($CheckBitwarden) {
-    Write-Host "`n--- 3. Verifying Bitwarden Vault Secrets ---" -ForegroundColor Cyan
-    $sessionKey = Ensure-BitwardenSession
-    if ($sessionKey) {
-        try {
-            $bwItem = bw get item $SecretItemName --session $sessionKey 2>$null | ConvertFrom-Json
-            Write-Host "    [OK] Found Bitwarden item '$SecretItemName'." -ForegroundColor Green
-            $keysInBw = @()
-            if ($bwItem.fields) {
-                foreach ($f in $bwItem.fields) { if ($f.name) { $keysInBw += $f.name } }
-            }
-            if ($bwItem.notes) {
-                $trimmed = $bwItem.notes.Trim()
-                if ($trimmed.StartsWith("{") -and $trimmed.EndsWith("}")) {
-                    $jsonNotes = $trimmed | ConvertFrom-Json
-                    foreach ($prop in $jsonNotes.PSObject.Properties) { $keysInBw += $prop.Name }
+    Write-Host "`n--- 4. Verifying Bitwarden Vault Secrets ---" -ForegroundColor Cyan
+    $bwCmd = Get-Command bw -ErrorAction SilentlyContinue
+    if ($bwCmd) {
+        $bwStatusRaw = (bw status 2>$null)
+        $bwStatus = if ($bwStatusRaw) { $bwStatusRaw | ConvertFrom-Json } else { $null }
+        if ($bwStatus -and $bwStatus.status -eq "locked" -and -not $env:BW_SESSION) {
+            Write-Host "    [-] Bitwarden vault is locked. Run 'bw unlock' to verify vault items." -ForegroundColor Yellow
+        } else {
+            $sessionKey = Ensure-BitwardenSession
+            if ($sessionKey) {
+                try {
+                    $bwItem = bw get item $SecretItemName --session $sessionKey 2>$null | ConvertFrom-Json
+                    Write-Host "    [OK] Found Bitwarden item '$SecretItemName'." -ForegroundColor Green
+                    $keysInBw = @()
+                    if ($bwItem.fields) {
+                        foreach ($f in $bwItem.fields) { if ($f.name) { $keysInBw += $f.name } }
+                    }
+                    if ($bwItem.notes) {
+                        $trimmed = $bwItem.notes.Trim()
+                        if ($trimmed.StartsWith("{") -and $trimmed.EndsWith("}")) {
+                            $jsonNotes = $trimmed | ConvertFrom-Json
+                            foreach ($prop in $jsonNotes.PSObject.Properties) { $keysInBw += $prop.Name }
+                        }
+                    }
+                    Write-Host "    Vault contains $($keysInBw.Count) secret key(s): $($keysInBw -join ', ')" -ForegroundColor Gray
+                } catch {
+                    Write-Host "    [-] Bitwarden item '$SecretItemName' not found or could not be read." -ForegroundColor Yellow
                 }
             }
-            Write-Host "    Vault contains $($keysInBw.Count) secret key(s): $($keysInBw -join ', ')" -ForegroundColor Gray
-        } catch {
-            Write-Host "    [-] Bitwarden item '$SecretItemName' not found or could not be read." -ForegroundColor Yellow
         }
+    } else {
+        Write-Host "    [-] Bitwarden CLI ('bw') not available." -ForegroundColor Yellow
     }
 }
 
