@@ -1,13 +1,19 @@
-# backup.ps1: Exports local T3 and MCP configs to the repository
+# backup.ps1: Exports local T3, provider configs, and MCP configs to the repository
 param (
     [switch]$Commit,
-    [string]$Message = "Update T3 configs and markdown"
+    [string]$Message = "Update T3 configs and markdown",
+    [switch]$PromptToStoreSecrets = $true
 )
 
 $ErrorActionPreference = "Stop"
 $root = (Split-Path -Parent $PSScriptRoot)
 $userDir = "$env:USERPROFILE\.t3\userdata"
 $cursorDir = "$env:USERPROFILE\.cursor"
+$geminiDir = "$env:USERPROFILE\.gemini\config"
+$providersRoot = "$root\config\providers"
+
+# Load secret scanning and Bitwarden helpers
+. "$PSScriptRoot\secret-utils.ps1"
 
 Write-Host "Backing up T3 configs from $userDir to $root\config..." -ForegroundColor Cyan
 
@@ -36,11 +42,59 @@ if (Test-Path "$userDir\settings.json") {
 }
 
 if (Test-Path "$cursorDir\mcp.json") {
-    Copy-Item "$cursorDir\mcp.json" "$root\config\mcp.json" -Force
+    $mcpContent = Get-Content "$cursorDir\mcp.json" -Raw | ConvertFrom-Json
+    Sanitize-ObjectSecrets -Obj $mcpContent -ContextName "mcp.json" -InteractivePrompt:$PromptToStoreSecrets | Out-Null
+    $mcpContent | ConvertTo-Json -Depth 10 | Set-Content "$root\config\mcp.json" -Encoding UTF8
     Write-Host "  [+] mcp.json (from ~/.cursor/mcp.json)"
 }
 
-Write-Host "Backup completed!" -ForegroundColor Green
+# --- Provider Configs Backup (e.g. Gemini / Antigravity) ---
+Write-Host "`nBacking up Provider configs (Gemini / Antigravity)..." -ForegroundColor Cyan
+if (Test-Path $geminiDir) {
+    $geminiTarget = "$providersRoot\gemini"
+    if (!(Test-Path $geminiTarget)) {
+        New-Item -ItemType Directory -Path $geminiTarget -Force | Out-Null
+    }
+
+    # Backup config.json (scan and sanitize secrets)
+    if (Test-Path "$geminiDir\config.json") {
+        $gConfig = Get-Content "$geminiDir\config.json" -Raw | ConvertFrom-Json
+        Sanitize-ObjectSecrets -Obj $gConfig -ContextName "gemini/config.json" -InteractivePrompt:$PromptToStoreSecrets | Out-Null
+        $gConfig | ConvertTo-Json -Depth 10 | Set-Content "$geminiTarget\config.json" -Encoding UTF8
+        Write-Host "  [+] gemini/config.json"
+    }
+
+    # Backup mcp_config.json if present
+    if (Test-Path "$geminiDir\mcp_config.json") {
+        $mcpG = Get-Content "$geminiDir\mcp_config.json" -Raw
+        if ($mcpG -and $mcpG.Trim()) {
+            try {
+                $mcpObj = $mcpG | ConvertFrom-Json
+                Sanitize-ObjectSecrets -Obj $mcpObj -ContextName "gemini/mcp_config.json" -InteractivePrompt:$PromptToStoreSecrets | Out-Null
+                $mcpObj | ConvertTo-Json -Depth 10 | Set-Content "$geminiTarget\mcp_config.json" -Encoding UTF8
+            } catch {
+                Copy-Item "$geminiDir\mcp_config.json" "$geminiTarget\mcp_config.json" -Force
+            }
+        } else {
+            Set-Content "$geminiTarget\mcp_config.json" "" -Encoding UTF8
+        }
+        Write-Host "  [+] gemini/mcp_config.json"
+    }
+
+    # Backup project definitions (projects/*.json)
+    if (Test-Path "$geminiDir\projects") {
+        $projTarget = "$geminiTarget\projects"
+        if (!(Test-Path $projTarget)) {
+            New-Item -ItemType Directory -Path $projTarget -Force | Out-Null
+        }
+        Get-ChildItem -Path "$geminiDir\projects\*.json" | ForEach-Object {
+            Copy-Item $_.FullName "$projTarget\$($_.Name)" -Force
+            Write-Host "  [+] gemini/projects/$($_.Name)"
+        }
+    }
+}
+
+Write-Host "`nBackup completed!" -ForegroundColor Green
 
 if ($Commit) {
     Set-Location $root

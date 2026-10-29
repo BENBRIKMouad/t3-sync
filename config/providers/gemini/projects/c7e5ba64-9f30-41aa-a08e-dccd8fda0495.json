@@ -1,0 +1,13 @@
+{
+  "id":  "c7e5ba64-9f30-41aa-a08e-dccd8fda0495",
+  "name":  "pantient-managment",
+  "projectResources":  {
+    "resources":  [
+      {
+        "folderUri":  "file:///c%3A/Dev/pantient-managment"
+      }
+    ]
+  },
+  "settings":  {},
+  "isWorkspaceOnly":  false
+}

@@ -1,6 +1,6 @@
 # T3 Code Sync Repository (Method A)
 
-This repository syncs your **T3 Code** UI configuration, keybindings, model preferences, skills, MCP servers, and agent markdown instruction files between multiple machines and different accounts without clobbering account credentials or machine IDs.
+This repository syncs your **T3 Code** UI configuration, keybindings, model preferences, skills, provider configs (e.g. Gemini / Antigravity), MCP servers, and agent instruction files between multiple machines without clobbering credentials, tokens, or machine IDs.
 
 ---
 
@@ -11,78 +11,63 @@ This repository syncs your **T3 Code** UI configuration, keybindings, model pref
 * **`config/desktop-settings.json`**: Window sizing and network/tailscale exposure modes.
 * **`config/settings.template.json`**: Preferred models, favorites, and provider drivers (tokens and clerk credentials stripped).
 * **`config/mcp.json`**: Global Model Context Protocol (MCP) server definitions with environment variable expansions (e.g., `${GITHUB_TOKEN}`).
+* **`config/providers/gemini/`**: Gemini & Antigravity provider configurations:
+  * `config.json`: Execution policies, sandboxing, and UI width preferences.
+  * `mcp_config.json`: Gemini-specific MCP configurations.
+  * `projects/*.json`: Registered projects and workspace definitions.
 * **`instructions/`**: Canonical `AGENTS.md` and prompt rule templates.
 * **`skills/`**: Shared custom agent skills.
 
 ---
 
-## Secret Management with Bitwarden Vault
+## Secret Detection & Bitwarden Integration
 
-Instead of keeping sensitive API tokens in plain text in Git, secrets are stored in your **Bitwarden Vault** and loaded directly into **Windows User Environment Variables**.
+Whenever you back up your settings or provider configurations, `backup.ps1` automatically scans for tokens, passwords, and API keys:
 
-### Bitwarden Vault (`bw`) vs. Bitwarden Secrets Manager (`bws`)
-* **Bitwarden Vault (`bw`)**: Part of standard Bitwarden accounts (Free & Premium). Uses items, logins, and Secure Notes in your personal vault. **This is what we use.**
-* **Bitwarden Secrets Manager (`bws`)**: A separate enterprise developer product designed for CI/CD pipelines, machine accounts, and Kubernetes clusters requiring separate machine service access tokens.
-
-### 1. Store Secrets in Bitwarden
-1. In your Bitwarden Vault (Desktop app, mobile app, or browser extension), create a new **Secure Note** item.
-2. Set the Name to: **`t3-secrets`**
-3. Add your secrets using either:
-   * **JSON in the Notes field**:
-     ```json
-     {
-       "GITHUB_TOKEN": "ghp_xxxxxxxxxxxxxxxxxxxx",
-       "BRAVE_API_KEY": "BSAxxxxxxxxxxxxxxxxxxxx"
-     }
-     ```
-   * **Or Custom Fields**: Add Custom Hidden/Text fields with the variable name as the field name (e.g. `GITHUB_TOKEN`) and the token as the value.
-
-### 2. Sync Secrets to Environment Variables
-Run:
-```powershell
-cd "$env:USERPROFILE\.t3\projects\t3-sync"
-.\scripts\sync-secrets.ps1
-```
-* The script checks for `bw` (installs via `scoop` or `winget` if missing), unlocks your vault, reads `t3-secrets`, and applies each key to your **Windows User Environment** (`[Environment]::SetEnvironmentVariable`).
-* MCP configurations in `config/mcp.json` automatically expand these variables (e.g. `"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"`).
+1. **Auto-Detection**: Scans JSON values for secret naming patterns (`key`, `token`, `secret`, `password`, `auth`) or prefix structures (`ghp_`, `sk-`, `AIza`, etc.).
+2. **Interactive Prompt**: If a secret is detected:
+   * It asks if you want to store it in your **Bitwarden Vault**.
+   * It creates or updates the secret in your Bitwarden **`t3-secrets`** Secure Note.
+   * It replaces the raw secret in the Git configuration file with an environment placeholder like `${KEY_NAME}`.
+3. **Environment Synchronization**: Running `.\scripts\sync-secrets.ps1` (or `.\scripts\apply.ps1 -SyncSecrets`) extracts those secrets directly into Windows User Environment Variables so T3 Code and MCP servers can read them safely without hardcoded secrets in Git.
 
 ---
 
-## Setup on a Remote / Secondary Machine
+## Bitwarden Vault Setup
 
-1. **Clone this repository** to the secondary machine:
-   ```powershell
-   git clone <YOUR-REMOTE-REPO-URL> "$env:USERPROFILE\.t3\projects\t3-sync"
-   ```
-
-2. **Apply configuration and sync secrets**:
-   ```powershell
-   cd "$env:USERPROFILE\.t3\projects\t3-sync"
-   # To copy files, merge preferences, and sync Bitwarden secrets:
-   .\scripts\apply.ps1 -SyncSecrets
-
-   # Or, with live symbolic links:
-   .\scripts\apply.ps1 -Symlink -SyncSecrets
-   ```
-
-3. **Restart T3 Code** on that machine.
+* Create a **Secure Note** named **`t3-secrets`** in your Bitwarden Vault (if not already created by the backup prompt).
+* You can add custom fields or place a JSON object in the note body:
+  ```json
+  {
+    "GITHUB_TOKEN": "ghp_xxxxxxxxxxxxxxxxxxxx",
+    "BRAVE_API_KEY": "BSAxxxxxxxxxxxxxxxxxxxx"
+  }
+  ```
 
 ---
 
-## Workflow on this Main Machine
+## Usage Commands
 
-### Backing Up / Updating Settings
-Whenever you change your keybindings, theme, MCP servers, or preferred models:
-
+### 1. Backing Up Local Settings (Main Machine)
 ```powershell
 cd "$env:USERPROFILE\.t3\projects\t3-sync"
-.\scripts\backup.ps1 -Commit -Message "Update keybindings, MCPs, and UI settings"
+.\scripts\backup.ps1 -Commit -Message "Sync T3 and Gemini provider settings"
 git push
 ```
 
-### Pulling Updates on Secondary Machine
+### 2. Restoring on a New or Secondary Machine
 ```powershell
 cd "$env:USERPROFILE\.t3\projects\t3-sync"
 git pull
-.\scripts\apply.ps1
+# Copy files, merge preferences, and sync Bitwarden secrets:
+.\scripts\apply.ps1 -SyncSecrets
+
+# Or use live symbolic links:
+.\scripts\apply.ps1 -Symlink -SyncSecrets
+```
+
+### 3. Syncing Secrets Alone
+```powershell
+cd "$env:USERPROFILE\.t3\projects\t3-sync"
+.\scripts\sync-secrets.ps1
 ```

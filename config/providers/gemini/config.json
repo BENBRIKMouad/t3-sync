@@ -1,0 +1,13 @@
+﻿{
+    "userSettings":  {
+                         "autoExecutionPolicy":  "CASCADE_COMMANDS_AUTO_EXECUTION_EAGER",
+                         "conversationWidth":  "CONVERSATION_WIDTH_DEFAULT",
+                         "enableTerminalSandbox":  false,
+                         "nonWorkspaceFileAccessPolicy":  "AGENT_SETTING_POLICY_ALLOW",
+                         "permissionGrantsV2Migrated":  true,
+                         "remoteControlEnabled":  false,
+                         "remoteControlHostname":  "desktop-480jajs-starlit-ion",
+                         "sandboxEnabledAtV2Migration":  false,
+                         "themeMode":  "THEME_MODE_INHERIT"
+                     }
+}

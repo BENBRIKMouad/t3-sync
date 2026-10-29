@@ -1,4 +1,4 @@
-# apply.ps1: Applies repository configs to local T3 userdata directory and MCP configurations
+# apply.ps1: Applies repository configs to local T3 userdata, provider configs, and MCP configurations
 param (
     [switch]$Symlink,
     [switch]$SyncSecrets
@@ -8,6 +8,8 @@ $ErrorActionPreference = "Stop"
 $root = (Split-Path -Parent $PSScriptRoot)
 $userDir = "$env:USERPROFILE\.t3\userdata"
 $cursorDir = "$env:USERPROFILE\.cursor"
+$geminiDir = "$env:USERPROFILE\.gemini\config"
+$providersRoot = "$root\config\providers"
 
 if (!(Test-Path $userDir)) {
     New-Item -ItemType Directory -Path $userDir -Force | Out-Null
@@ -65,6 +67,35 @@ if (Test-Path "$root\config\settings.template.json") {
     } else {
         Copy-Item "$root\config\settings.template.json" "$userDir\settings.json" -Force
         Write-Host "  [Created] settings.json from template"
+    }
+}
+
+# --- Apply Provider Configs (Gemini / Antigravity) ---
+if (Test-Path "$providersRoot\gemini") {
+    Write-Host "`nApplying Gemini / Antigravity configs..." -ForegroundColor Cyan
+    if (!(Test-Path $geminiDir)) {
+        New-Item -ItemType Directory -Path $geminiDir -Force | Out-Null
+    }
+
+    if (Test-Path "$providersRoot\gemini\config.json") {
+        Copy-Item "$providersRoot\gemini\config.json" "$geminiDir\config.json" -Force
+        Write-Host "  [Copied] gemini\config.json"
+    }
+
+    if (Test-Path "$providersRoot\gemini\mcp_config.json") {
+        Copy-Item "$providersRoot\gemini\mcp_config.json" "$geminiDir\mcp_config.json" -Force
+        Write-Host "  [Copied] gemini\mcp_config.json"
+    }
+
+    if (Test-Path "$providersRoot\gemini\projects") {
+        $localProjectsDir = "$geminiDir\projects"
+        if (!(Test-Path $localProjectsDir)) {
+            New-Item -ItemType Directory -Path $localProjectsDir -Force | Out-Null
+        }
+        Get-ChildItem -Path "$providersRoot\gemini\projects\*.json" | ForEach-Object {
+            Copy-Item $_.FullName "$localProjectsDir\$($_.Name)" -Force
+            Write-Host "  [Copied] gemini\projects\$($_.Name)"
+        }
     }
 }
 
