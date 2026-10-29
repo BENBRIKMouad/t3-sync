@@ -1,0 +1,26 @@
+{
+  "id": "2258cc1f-2df5-427b-a17a-b635b9281270",
+  "name": "chinpung",
+  "projectResources": {
+    "resources": [
+      {
+        "folderUri": "file:///c%3A/Users/mouad_benbrik/Documents/chinpung"
+      }
+    ]
+  },
+  "permissionGrants": {
+    "permissionGrants": {
+      "allow": [
+        "command(Get-ChildItem -Force)"
+      ]
+    },
+    "v2Migrated": true
+  },
+  "settings": {
+    "fileAccessPolicy": "AGENT_SETTING_POLICY_ALLOW",
+    "sandboxMode": false,
+    "autoExecutionPolicy": "CASCADE_COMMANDS_AUTO_EXECUTION_EAGER",
+    "artifactReviewMode": "ARTIFACT_REVIEW_MODE_TURBO"
+  },
+  "isWorkspaceOnly": false
+}

@@ -1,1 +1,14 @@
-﻿
+{
+  "mcpServers": {
+    "notion": {
+      "args": [
+        "C:\\Users\\mouad_benbrik\\AppData\\Roaming\\npm\\node_modules\\@suekou\\mcp-notion-server\\build\\index.js"
+      ],
+      "env": {
+        "NOTION_API_TOKEN": "${NOTION_API_TOKEN}",
+        "NOTION_API_KEY": "${NOTION_API_KEY}"
+      },
+      "command": "node"
+    }
+  }
+}
