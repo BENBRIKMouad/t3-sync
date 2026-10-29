@@ -2,7 +2,7 @@
 param (
     [switch]$Commit,
     [string]$Message,
-    [switch]$PromptToStoreSecrets = $true
+    [switch]$NoSecretPrompt
 )
 
 $ErrorActionPreference = "Stop"
@@ -12,6 +12,7 @@ $cursorDir = "$env:USERPROFILE\.cursor"
 $geminiDir = "$env:USERPROFILE\.gemini\config"
 $providersRoot = "$root\config\providers"
 $hostName = $env:COMPUTERNAME
+$promptToStore = -not $NoSecretPrompt
 
 # Load secret scanning and Bitwarden helpers
 . "$PSScriptRoot\secret-utils.ps1"
@@ -44,7 +45,7 @@ if (Test-Path "$userDir\settings.json") {
 
 if (Test-Path "$cursorDir\mcp.json") {
     $mcpContent = Get-Content "$cursorDir\mcp.json" -Raw | ConvertFrom-Json
-    Sanitize-ObjectSecrets -Obj $mcpContent -ContextName "mcp.json" -InteractivePrompt:$PromptToStoreSecrets | Out-Null
+    Sanitize-ObjectSecrets -Obj $mcpContent -ContextName "mcp.json" -InteractivePrompt:$promptToStore | Out-Null
     $mcpContent | ConvertTo-Json -Depth 10 | Set-Content "$root\config\mcp.json" -Encoding UTF8
     Write-Host "  [+] mcp.json (from ~/.cursor/mcp.json)"
 }
@@ -60,7 +61,7 @@ if (Test-Path $geminiDir) {
     # Backup config.json (scan and sanitize secrets)
     if (Test-Path "$geminiDir\config.json") {
         $gConfig = Get-Content "$geminiDir\config.json" -Raw | ConvertFrom-Json
-        Sanitize-ObjectSecrets -Obj $gConfig -ContextName "gemini/config.json" -InteractivePrompt:$PromptToStoreSecrets | Out-Null
+        Sanitize-ObjectSecrets -Obj $gConfig -ContextName "gemini/config.json" -InteractivePrompt:$promptToStore | Out-Null
         $gConfig | ConvertTo-Json -Depth 10 | Set-Content "$geminiTarget\config.json" -Encoding UTF8
         Write-Host "  [+] gemini/config.json"
     }
@@ -71,7 +72,7 @@ if (Test-Path $geminiDir) {
         if ($mcpG -and $mcpG.Trim()) {
             try {
                 $mcpObj = $mcpG | ConvertFrom-Json
-                Sanitize-ObjectSecrets -Obj $mcpObj -ContextName "gemini/mcp_config.json" -InteractivePrompt:$PromptToStoreSecrets | Out-Null
+                Sanitize-ObjectSecrets -Obj $mcpObj -ContextName "gemini/mcp_config.json" -InteractivePrompt:$promptToStore | Out-Null
                 $mcpObj | ConvertTo-Json -Depth 10 | Set-Content "$geminiTarget\mcp_config.json" -Encoding UTF8
             } catch {
                 Copy-Item "$geminiDir\mcp_config.json" "$geminiTarget\mcp_config.json" -Force

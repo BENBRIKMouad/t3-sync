@@ -39,7 +39,11 @@ if (-not $Force -and -not $NoPrompt) {
 
 # Step 4: Backup & Commit
 Write-Host "`n[Step 3/4] Running Backup & Commit..." -ForegroundColor Cyan
-& "$PSScriptRoot\backup.ps1" -Commit -Message $CustomMessage -PromptToStoreSecrets:(-not $NoPrompt)
+$backupParams = @{ Commit = $true }
+if ($CustomMessage) { $backupParams["Message"] = $CustomMessage }
+if ($NoPrompt) { $backupParams["NoSecretPrompt"] = $true }
+
+& "$PSScriptRoot\backup.ps1" @backupParams
 
 # Step 5: Git Push
 if (-not $NoPush) {
