@@ -16,50 +16,6 @@
     "command": "workspace.focusPrevious"
   },
   {
-    "key": "mod+shift+b",
-    "command": "threadPanel.toggle",
-    "when": "!terminalFocus"
-  },
-  {
-    "key": "mod+t",
-    "command": "rightPanel.new",
-    "when": "rightPanelOpen && !terminalFocus"
-  },
-  {
-    "key": "mod+shift+t",
-    "command": "view.reopenClosed"
-  },
-  {
-    "key": "alt+arrowup",
-    "command": "thread.editQueuedMessage",
-    "when": "composerFocus"
-  },
-  {
-    "key": "mod+enter",
-    "command": "composer.sendAlternate",
-    "when": "composerFocus && turnRunning"
-  },
-  {
-    "key": "mod+enter",
-    "command": "composer.sendBackground",
-    "when": "composerFocus && draftThreadRoute"
-  },
-  {
-    "key": "mod+alt+enter",
-    "command": "composer.sendBackground",
-    "when": "composerFocus && draftThreadRoute"
-  },
-  {
-    "key": "mod+alt+enter",
-    "command": "composer.sendAndNewThread",
-    "when": "composerFocus && !draftThreadRoute"
-  },
-  {
-    "key": "mod+f",
-    "command": "chat.find",
-    "when": "!terminalFocus && !previewFocus"
-  },
-  {
     "key": "mod+b",
     "command": "sidebar.toggle"
   },
@@ -80,6 +36,16 @@
   {
     "key": "mod+alt+b",
     "command": "rightPanel.toggle"
+  },
+  {
+    "key": "mod+shift+b",
+    "command": "threadPanel.toggle",
+    "when": "!terminalFocus"
+  },
+  {
+    "key": "mod+t",
+    "command": "rightPanel.new",
+    "when": "rightPanelOpen && !terminalFocus"
   },
   {
     "key": "mod+d",
@@ -105,6 +71,10 @@
     "key": "mod+w",
     "command": "rightPanel.close",
     "when": "!terminalFocus"
+  },
+  {
+    "key": "mod+shift+t",
+    "command": "view.reopenClosed"
   },
   {
     "key": "mod+d",
@@ -190,6 +160,31 @@
     "when": "!terminalFocus"
   },
   {
+    "key": "alt+arrowup",
+    "command": "thread.editQueuedMessage",
+    "when": "composerFocus"
+  },
+  {
+    "key": "mod+enter",
+    "command": "composer.sendAlternate",
+    "when": "composerFocus && turnRunning"
+  },
+  {
+    "key": "mod+enter",
+    "command": "composer.sendBackground",
+    "when": "composerFocus && draftThreadRoute"
+  },
+  {
+    "key": "mod+alt+enter",
+    "command": "composer.sendBackground",
+    "when": "composerFocus && draftThreadRoute"
+  },
+  {
+    "key": "mod+alt+enter",
+    "command": "composer.sendAndNewThread",
+    "when": "composerFocus && !draftThreadRoute"
+  },
+  {
     "key": "mod+n",
     "command": "chat.new",
     "when": "!terminalFocus"
@@ -208,6 +203,11 @@
     "key": "mod+alt+n",
     "command": "chat.newWithoutProject",
     "when": "!terminalFocus"
+  },
+  {
+    "key": "mod+f",
+    "command": "chat.find",
+    "when": "!terminalFocus && !previewFocus"
   },
   {
     "key": "mod+shift+m",
@@ -294,47 +294,47 @@
   {
     "key": "mod+1",
     "command": "thread.jump.1",
-    "when": "isDesktop"
+    "when": "!modelPickerOpen && isDesktop"
   },
   {
     "key": "mod+2",
     "command": "thread.jump.2",
-    "when": "isDesktop"
+    "when": "!modelPickerOpen && isDesktop"
   },
   {
     "key": "mod+3",
     "command": "thread.jump.3",
-    "when": "isDesktop"
+    "when": "!modelPickerOpen && isDesktop"
   },
   {
     "key": "mod+4",
     "command": "thread.jump.4",
-    "when": "isDesktop"
+    "when": "!modelPickerOpen && isDesktop"
   },
   {
     "key": "mod+5",
     "command": "thread.jump.5",
-    "when": "isDesktop"
+    "when": "!modelPickerOpen && isDesktop"
   },
   {
     "key": "mod+6",
     "command": "thread.jump.6",
-    "when": "isDesktop"
+    "when": "!modelPickerOpen && isDesktop"
   },
   {
     "key": "mod+7",
     "command": "thread.jump.7",
-    "when": "isDesktop"
+    "when": "!modelPickerOpen && isDesktop"
   },
   {
     "key": "mod+8",
     "command": "thread.jump.8",
-    "when": "isDesktop"
+    "when": "!modelPickerOpen && isDesktop"
   },
   {
     "key": "mod+9",
     "command": "thread.jump.9",
-    "when": "isDesktop"
+    "when": "!modelPickerOpen && isDesktop"
   },
   {
     "key": "mod+1",

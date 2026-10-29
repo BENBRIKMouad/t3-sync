@@ -1,73 +1,21 @@
-﻿{
-    "favorites":  [
-                      {
-                          "provider":  "antigravity",
-                          "model":  "gemini-3.8-flash-high"
-                      }
-                  ],
-    "providerModelPreferences":  {
-                                     "claudeAgent":  {
-                                                         "hiddenModels":  [
-                                                                              "claude-opus-5-5",
-                                                                              "claude-sonnet-5-5",
-                                                                              "claude-fable-5-1",
-                                                                              "claude-fable-5",
-                                                                              "claude-opus-5",
-                                                                              "claude-opus-4-8",
-                                                                              "claude-opus-4-7",
-                                                                              "claude-opus-4-6",
-                                                                              "claude-opus-4-5",
-                                                                              "claude-sonnet-5",
-                                                                              "claude-sonnet-4-6",
-                                                                              "claude-haiku-5-5",
-                                                                              "claude-haiku-4-5"
-                                                                          ],
-                                                         "modelOrder":  [
-
-                                                                        ]
-                                                     }
-                                 },
-    "defaultModelSelection":  {
-                                  "instanceId":  "antigravity",
-                                  "model":  "gemini-3.8-flash-low"
-                              },
-    "projectSettingsFolded":  true,
-    "deviceOnboardingCompleted":  true,
-    "idleCompaction":  "onReturn",
-    "providerInstances":  {
-                              "antigravity":  {
-                                                  "driver":  "antigravity",
-                                                  "enabled":  true,
-                                                  "config":  {
-                                                                 "authMethod":  "oauth-personal",
-                                                                 "apiKey":  "",
-                                                                 "gcpProject":  "",
-                                                                 "gcpLocation":  "",
-                                                                 "binaryPath":  "",
-                                                                 "customModels":  [
-
-                                                                                  ]
-                                                             }
-                                              },
-                              "codex":  {
-                                            "driver":  "codex",
-                                            "enabled":  false,
-                                            "config":  {
-                                                           "binaryPath":  "codex",
-                                                           "homePath":  "",
-                                                           "shadowHomePath":  "",
-                                                           "launchArgs":  "",
-                                                           "customModels":  [
-
-                                                                            ]
-                                                       }
-                                        },
-                              "claudeAgent":  {
-                                                  "driver":  "claudeAgent",
-                                                  "enabled":  false
-                                              }
-                          },
-    "sourceControlHosts":  {
-
-                           }
+{
+  "defaultAutoPull": true,
+  "projectSettingsFolded": true,
+  "deviceOnboardingCompleted": true,
+  "idleCompaction": "onReturn",
+  "providerInstances": {
+    "antigravity": {
+      "driver": "antigravity",
+      "displayName": "Antigravity",
+      "enabled": true
+    },
+    "codex": {
+      "driver": "codex",
+      "enabled": false
+    },
+    "claudeAgent": {
+      "driver": "claudeAgent",
+      "enabled": false
+    }
+  }
 }
