@@ -1,8 +1,36 @@
 ﻿{
+    "plugins":  {
+                    "chrome-devtools-plugin":  {
+                                                   "installedFrom":  {
+                                                                         "id":  "antigravity-plugins-official/plugin/chrome-devtools-plugin",
+                                                                         "marketplace":  "antigravity-plugins-official",
+                                                                         "version":  "1.10.1"
+                                                                     }
+                                               },
+                    "flutter":  {
+                                    "installedFrom":  {
+                                                          "id":  "antigravity-plugins-official/plugin/flutter",
+                                                          "marketplace":  "antigravity-plugins-official",
+                                                          "version":  "1.0.6"
+                                                      }
+                                },
+                    "modern-web-guidance-plugin":  {
+                                                       "installedFrom":  {
+                                                                             "id":  "antigravity-plugins-official/plugin/modern-web-guidance-plugin",
+                                                                             "marketplace":  "antigravity-plugins-official",
+                                                                             "version":  "0.0.196"
+                                                                         }
+                                                   }
+                },
     "userSettings":  {
                          "autoExecutionPolicy":  "CASCADE_COMMANDS_AUTO_EXECUTION_EAGER",
                          "conversationWidth":  "CONVERSATION_WIDTH_DEFAULT",
                          "enableTerminalSandbox":  false,
+                         "globalPermissionGrants":  {
+                                                        "allow":  [
+                                                                      "command(Get-ChildItem betopgame)"
+                                                                  ]
+                                                    },
                          "nonWorkspaceFileAccessPolicy":  "AGENT_SETTING_POLICY_ALLOW",
                          "permissionGrantsV2Migrated":  true,
                          "remoteControlEnabled":  false,
