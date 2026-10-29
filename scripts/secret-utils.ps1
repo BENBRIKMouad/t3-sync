@@ -11,8 +11,8 @@ function Test-PotentialSecret {
     # Patterns indicating secrets
     $secretKeyRegex = '(key|token|secret|password|auth|credential|access_token|api_key|bearer)'
     if ($Key -match $secretKeyRegex) {
-        # Exclude common false positives
-        if ($Value -notmatch '^(true|false|none|default|null|\d+)$' -and $Value -notmatch '^\${.+}' -and $Value -notmatch '^\{\{.+}}$') {
+        # Exclude common false positives and already substituted placeholders
+        if ($Value -notmatch '^(true|false|none|default|null|\d+)$' -and $Value -notmatch '^\$\{.+\}' -and $Value -notmatch '^\{\{.+}}$') {
             return $true
         }
     }
@@ -141,7 +141,7 @@ function Sanitize-ObjectSecrets {
             $val = if ($Obj -is [System.Collections.IDictionary]) { $Obj[$propName] } else { $Obj.$propName }
 
             if ($val -is [string] -and (Test-PotentialSecret -Key $propName -Value $val)) {
-                $masked = "${$propName}"
+                $masked = '${' + $propName + '}'
                 Write-Host "`n[!] Detected potential secret: '$propName' in $ContextName" -ForegroundColor Yellow
                 Write-Host "    Current value preview: $($val.Substring(0, [Math]::Min(8, $val.Length)))..." -ForegroundColor Gray
 
