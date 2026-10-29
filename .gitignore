@@ -1,0 +1,11 @@
+# Git Ignore for T3 Sync Repository
+clerk-tokens.json
+anonymous-id
+environment-id
+*.sqlite*
+secrets/
+scratch/
+caches/
+*.log
+.DS_Store
+Thumbs.db
