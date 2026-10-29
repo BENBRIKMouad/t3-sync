@@ -23,7 +23,7 @@ function Test-PotentialSecret {
     }
 
     # Known token prefix patterns
-    if ($Value -match '^(ghp_[A-Za-z0-9_]{20,}|AIza[0-9A-Za-z-_]{35}|sk-[A-Za-z0-9]{20,}|xox[baprs]-[0-9A-Za-z]{10,})') {
+    if ($Value -match '^(ghp_[A-Za-z0-9_]{20,}|AIza[0-9A-Za-z-_]{35}|sk-[A-Za-z0-9]{20,}|xox[baprs]-[0-9A-Za-z]{10,}|ntn_[A-Za-z0-9_]{20,})') {
         return $true
     }
 
@@ -154,12 +154,14 @@ function Sanitize-ObjectSecrets {
                     $choice = Read-Host "Would you like to store '$propName' in Bitwarden and replace with '$masked'? (y/n)"
                     if ($choice -match '^(y|yes)$') {
                         Add-SecretToBitwarden -Key $propName -Value $val
-                        if ($Obj -is [System.Collections.IDictionary]) {
-                            $Obj[$propName] = $masked
-                        } else {
-                            $Obj.$propName = $masked
-                        }
                     }
+                }
+
+                # Always sanitize the in-memory object destined for repository files
+                if ($Obj -is [System.Collections.IDictionary]) {
+                    $Obj[$propName] = $masked
+                } else {
+                    $Obj.$propName = $masked
                 }
             } elseif ($val -is [System.Management.Automation.PSCustomObject] -or $val -is [System.Collections.IDictionary] -or $val -is [System.Collections.IEnumerable] -and -not ($val -is [string])) {
                 Sanitize-ObjectSecrets -Obj $val -ContextName "$ContextName.$propName" -InteractivePrompt:$InteractivePrompt
