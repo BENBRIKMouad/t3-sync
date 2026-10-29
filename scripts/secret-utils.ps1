@@ -8,11 +8,16 @@ function Test-PotentialSecret {
     if ([string]::IsNullOrWhiteSpace($Value)) { return $false }
     if ($Value.Length -lt 8) { return $false }
 
+    # Ignore configuration meta fields that are not secrets
+    if ($Key -match '^(authMethod|authType|authenticationMethod|policy|strategy|theme|mode|status)$') {
+        return $false
+    }
+
     # Patterns indicating secrets
-    $secretKeyRegex = '(key|token|secret|password|auth|credential|access_token|api_key|bearer)'
+    $secretKeyRegex = '(key|token|secret|password|credential|access_token|api_key|bearer)'
     if ($Key -match $secretKeyRegex) {
         # Exclude common false positives and already substituted placeholders
-        if ($Value -notmatch '^(true|false|none|default|null|\d+)$' -and $Value -notmatch '^\$\{.+\}' -and $Value -notmatch '^\{\{.+}}$') {
+        if ($Value -notmatch '^(true|false|none|default|null|\d+|oauth-personal|oauth-work|api-key)$' -and $Value -notmatch '^\$\{.+\}' -and $Value -notmatch '^\{\{.+}}$') {
             return $true
         }
     }

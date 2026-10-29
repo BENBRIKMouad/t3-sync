@@ -1,6 +1,6 @@
 # T3 Code Sync Repository (Method A)
 
-This repository syncs your **T3 Code** UI configuration, keybindings, model preferences, skills, provider configs (e.g. Gemini / Antigravity), MCP servers, and agent instruction files between multiple machines without clobbering credentials, tokens, or machine IDs.
+This repository syncs your **T3 Code** UI configuration, keybindings, model preferences, custom skills, provider configs (e.g. Gemini / Antigravity), MCP servers, and agent instruction files between multiple machines without leaking credentials, tokens, or machine IDs.
 
 ---
 
@@ -16,57 +16,68 @@ This repository syncs your **T3 Code** UI configuration, keybindings, model pref
   * `mcp_config.json`: Gemini-specific MCP configurations.
   * `projects/*.json`: Registered projects and workspace definitions.
 * **`instructions/`**: Canonical `AGENTS.md` and prompt rule templates.
-* **`skills/`**: Shared custom agent skills.
+* **`skills/`**: Shared agent skills (including the self-contained `t3-sync` skill).
+
+---
+
+## Custom Agent Skill: `t3-sync`
+
+This repository includes a built-in skill ([`skills/t3-sync/SKILL.md`](file:///C:/Users/mouad_benbrik/.t3/projects/t3-sync/skills/t3-sync/SKILL.md)) registered in `.agents/skills` and `.gemini/skills`. Whenever you are working in T3 Code or Gemini, you can ask the agent directly to:
+* *"Compare my current environment with Git and Bitwarden"*
+* *"Audit my configs for missed secrets"*
+* *"Run git pull, backup my settings with host details, and commit & push"*
+* *"Apply the latest repo settings and sync my Bitwarden keys"*
 
 ---
 
 ## Secret Detection & Bitwarden Integration
 
-Whenever you back up your settings or provider configurations, `backup.ps1` automatically scans for tokens, passwords, and API keys:
+Whenever you back up your settings or provider configurations, `backup.ps1` and `diff-env.ps1` automatically scan for tokens, passwords, and API keys:
 
-1. **Auto-Detection**: Scans JSON values for secret naming patterns (`key`, `token`, `secret`, `password`, `auth`) or prefix structures (`ghp_`, `sk-`, `AIza`, etc.).
+1. **Auto-Detection**: Scans JSON values for secret naming patterns (`key`, `token`, `secret`, `password`, `credential`) or prefix structures (`ghp_`, `sk-`, `AIza`, etc.).
 2. **Interactive Prompt**: If a secret is detected:
    * It asks if you want to store it in your **Bitwarden Vault**.
    * It creates or updates the secret in your Bitwarden **`t3-secrets`** Secure Note.
    * It replaces the raw secret in the Git configuration file with an environment placeholder like `${KEY_NAME}`.
-3. **Environment Synchronization**: Running `.\scripts\sync-secrets.ps1` (or `.\scripts\apply.ps1 -SyncSecrets`) extracts those secrets directly into Windows User Environment Variables so T3 Code and MCP servers can read them safely without hardcoded secrets in Git.
+3. **Environment Synchronization**: Running `.\scripts\sync-secrets.ps1` extracts those secrets directly into Windows User Environment Variables so T3 Code and MCP servers can read them safely without hardcoded secrets in Git.
 
 ---
 
-## Bitwarden Vault Setup
+## Scripts & CLI Commands
 
-* Create a **Secure Note** named **`t3-secrets`** in your Bitwarden Vault (if not already created by the backup prompt).
-* You can add custom fields or place a JSON object in the note body:
-  ```json
-  {
-    "GITHUB_TOKEN": "ghp_xxxxxxxxxxxxxxxxxxxx",
-    "BRAVE_API_KEY": "BSAxxxxxxxxxxxxxxxxxxxx"
-  }
-  ```
-
----
-
-## Usage Commands
-
-### 1. Backing Up Local Settings (Main Machine)
+### 1. Full Automated Synchronization (Recommended)
+Always runs `git pull --rebase` first, compares local configs, audits for missed secrets, prompts before backup, and commits with hostname + changed files:
 ```powershell
 cd "$env:USERPROFILE\.t3\projects\t3-sync"
-.\scripts\backup.ps1 -Commit -Message "Sync T3 and Gemini provider settings"
+.\scripts\sync-all.ps1
+```
+
+### 2. Diff & Missed Secrets Inspection
+Inspects differences between local configs, remote repo, and Bitwarden:
+```powershell
+cd "$env:USERPROFILE\.t3\projects\t3-sync"
+.\scripts\diff-env.ps1 -CheckBitwarden
+```
+
+### 3. Backing Up Local Settings Individually
+```powershell
+cd "$env:USERPROFILE\.t3\projects\t3-sync"
+.\scripts\backup.ps1 -Commit
 git push
 ```
 
-### 2. Restoring on a New or Secondary Machine
+### 4. Restoring on a New or Secondary Machine
 ```powershell
 cd "$env:USERPROFILE\.t3\projects\t3-sync"
 git pull
-# Copy files, merge preferences, and sync Bitwarden secrets:
+# Copy mode:
 .\scripts\apply.ps1 -SyncSecrets
 
-# Or use live symbolic links:
+# Or live symbolic links:
 .\scripts\apply.ps1 -Symlink -SyncSecrets
 ```
 
-### 3. Syncing Secrets Alone
+### 5. Pulling Secrets from Bitwarden to Windows
 ```powershell
 cd "$env:USERPROFILE\.t3\projects\t3-sync"
 .\scripts\sync-secrets.ps1

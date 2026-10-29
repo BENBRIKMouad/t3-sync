@@ -1,7 +1,7 @@
 # backup.ps1: Exports local T3, provider configs, and MCP configs to the repository
 param (
     [switch]$Commit,
-    [string]$Message = "Update T3 configs and markdown",
+    [string]$Message,
     [switch]$PromptToStoreSecrets = $true
 )
 
@@ -11,11 +11,12 @@ $userDir = "$env:USERPROFILE\.t3\userdata"
 $cursorDir = "$env:USERPROFILE\.cursor"
 $geminiDir = "$env:USERPROFILE\.gemini\config"
 $providersRoot = "$root\config\providers"
+$hostName = $env:COMPUTERNAME
 
 # Load secret scanning and Bitwarden helpers
 . "$PSScriptRoot\secret-utils.ps1"
 
-Write-Host "Backing up T3 configs from $userDir to $root\config..." -ForegroundColor Cyan
+Write-Host "Backing up T3 configs from $userDir to $root\config (Host: $hostName)..." -ForegroundColor Cyan
 
 if (Test-Path "$userDir\client-settings.json") {
     Copy-Item "$userDir\client-settings.json" "$root\config\client-settings.json" -Force
@@ -98,7 +99,27 @@ Write-Host "`nBackup completed!" -ForegroundColor Green
 
 if ($Commit) {
     Set-Location $root
+    $statusLines = (git status --porcelain)
+    if (-not $statusLines) {
+        Write-Host "No changes detected to commit." -ForegroundColor Yellow
+        return
+    }
+
+    # Determine changed files
+    $changedList = @()
+    foreach ($line in $statusLines) {
+        $f = $line.Substring(3).Trim()
+        $changedList += [System.IO.Path]::GetFileName($f)
+    }
+    $changedSummary = ($changedList | Select-Object -Unique) -join ", "
+
+    if ([string]::IsNullOrWhiteSpace($Message)) {
+        $commitMsg = "sync($hostName): update $changedSummary [source: $hostName]"
+    } else {
+        $commitMsg = "$Message [source: $hostName | changed: $changedSummary]"
+    }
+
     git add .
-    git commit -m $Message
-    Write-Host "Committed changes to git repository." -ForegroundColor Green
+    git commit -m $commitMsg
+    Write-Host "Committed changes to git repository: '$commitMsg'" -ForegroundColor Green
 }
