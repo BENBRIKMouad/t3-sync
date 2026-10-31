@@ -1,7 +1,7 @@
 {
   "name": "flutter",
   "displayName": "Dart and Flutter",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Official plugin for Dart and Flutter that installs Flutter/Dart Skills, Rules, Custom Agents, and Dart MCP server for building natively compiled, visually stunning applications for mobile, web, desktop, and embedded devices from a single codebase",
   "logo": "https://www.gstatic.com/images/branding/productlogos/flutter/v6/192px.svg",
   "suggestedPrompts": [
