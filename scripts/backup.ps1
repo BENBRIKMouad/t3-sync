@@ -61,6 +61,12 @@ if (Test-Path "$cursorDir\mcp.json") {
     Write-Host "  [+] mcp.json (from ~/.cursor/mcp.json)"
 }
 
+if (Test-Path "$userDir\themes") {
+    $themesTarget = "$root\config\themes"
+    Copy-DirectorySafely -SourceDir "$userDir\themes" -TargetDir $themesTarget
+    Write-Host "  [+] themes (~/.t3/userdata/themes)"
+}
+
 # --- Provider Configs Backup (Gemini / Antigravity) ---
 Write-Host "`nBacking up Provider configs (Gemini / Antigravity: configs, skills, plugins, MCPs)..." -ForegroundColor Cyan
 if (Test-Path $geminiDir) {

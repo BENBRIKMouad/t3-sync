@@ -1,5 +1,15 @@
 [
   {
+    "key": "mod+f",
+    "command": "preview.find",
+    "when": "previewFocus"
+  },
+  {
+    "key": "mod+shift+d",
+    "command": "composer.dictation",
+    "when": "!terminalFocus"
+  },
+  {
     "key": "f6",
     "command": "workspace.focusNext"
   },

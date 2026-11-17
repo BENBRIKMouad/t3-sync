@@ -58,7 +58,12 @@ if ($Symlink) {
     Write-Host "  [Copied] keybindings.json"
 
     Copy-Item "$root\config\desktop-settings.json" "$userDir\desktop-settings.json" -Force
-    Write-Host "  [Copied] desktop-settings.json"
+
+
+    if (Test-Path "$root\config\themes") {
+        Copy-DirectorySafely -SourceDir "$root\config\themes" -TargetDir "$userDir\themes"
+        Write-Host "  [Copied] themes -> ~/.t3/userdata/themes"
+    }    Write-Host "  [Copied] desktop-settings.json"
 
     if (Test-Path "$root\config\mcp.json") {
         if (!(Test-Path $cursorDir)) { New-Item -ItemType Directory -Path $cursorDir -Force | Out-Null }
